@@ -33,15 +33,15 @@ class LearningRiskScoreModel {
  public:
   LearningRiskScoreModel() {}
   LearningRiskScoreModel(
-      float overall_real, const std::vector<BLEBucket>& ble_buckets,
+      float risk_scale_factor, const std::vector<BLEBucket>& ble_buckets,
       const std::vector<InfectiousnessBucket>& infectiousness_buckets,
       const int exposure_notification_window_days)
-      : overall_real_(overall_real),
+      : risk_scale_factor_(risk_scale_factor),
         ble_buckets_(ble_buckets),
         infectiousness_buckets_(infectiousness_buckets),
         exposure_notification_window_days_(exposure_notification_window_days) {}
 
-  float ComputeHazard(
+  float ComputeRiskScore(
       const Exposure& exposure,
       absl::optional<absl::Time> initial_symptom_onset_time) const;
 
@@ -57,15 +57,15 @@ class LearningRiskScoreModel {
 
   absl::StatusOr<int> RSSIToBinIndex(const int rssi) const;
 
-  float ComputeDurationScore(const Exposure& exposure) const;
+  float ComputeDurationRiskScore(const Exposure& exposure) const;
   // Note: This method assumes infectiousness_buckets_ has a particular
   // ordering. Specifically the ordering is asc on days_since_symptom_onset_max.
-  float ComputeInfectionScore(
+  float ComputeInfectionRiskScore(
       absl::optional<int64> days_since_symptom_onset) const;
 
-  // Overall scaling factor for hazard. This scales the product of duration and
-  // infection scores.
-  float overall_real_;
+  // Overall scaling factor for risk score. This scales the product of duration
+  // and infection scores. Default to 1 in case not supplied.
+  float risk_scale_factor_ = 1;
   // Buckets representing threshold and corresponding weight of ble attenuation
   // signals.
   std::vector<BLEBucket> ble_buckets_;
