@@ -17,6 +17,8 @@
 #ifndef AGENT_BASED_EPIDEMIC_SIM_APPLICATIONS_RISK_LEARNING_RISK_SCORE_H_
 #define AGENT_BASED_EPIDEMIC_SIM_APPLICATIONS_RISK_LEARNING_RISK_SCORE_H_
 
+#include <cmath>
+
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "absl/types/optional.h"
@@ -33,10 +35,10 @@ class LearningRiskScoreModel {
  public:
   LearningRiskScoreModel() {}
   LearningRiskScoreModel(
-      float overall_real, const std::vector<BLEBucket>& ble_buckets,
+      float risk_scale_factor, const std::vector<BLEBucket>& ble_buckets,
       const std::vector<InfectiousnessBucket>& infectiousness_buckets,
       const int exposure_notification_window_days)
-      : overall_real_(overall_real),
+      : risk_scale_factor_(risk_scale_factor),
         ble_buckets_(ble_buckets),
         infectiousness_buckets_(infectiousness_buckets),
         exposure_notification_window_days_(exposure_notification_window_days) {}
@@ -45,14 +47,25 @@ class LearningRiskScoreModel {
       const Exposure& exposure,
       absl::optional<absl::Time> initial_symptom_onset_time) const;
 
+  // Computes a probability of infection
+  float ComputeProbabilisticRiskScore(
+      const Exposure& exposure,
+      absl::optional<absl::Time> initial_symptom_onset_time) const;
+
  private:
-  // Inverse form of the RSSI to distance function found in the Cencetti paper:
-  // https://www.medrxiv.org/content/10.1101/2020.05.29.20115915v2.
-  int DistanceToRSSI(const float distance) const {
-    const float alpha = 8.851;
-    const float beta = 113.4;
-    const float gamma = 3.715;
-    return pow(alpha / distance, 1 / gamma) - beta;
+  // Inferring proximity from Bluetooth Low Energy RSSI with Unscented Kalman
+  // Smoothers, Tom Lovett, Mark Briers, Marcos Charalambides, Radka Jersakova,
+  // James Lomax, Chris Holmes, July 2020. https://arxiv.org/abs/2007.05057
+  int DistanceToAttenuation(const float distance) const {
+    const float slope = 0.21;
+    const float intercept = 3.92;
+    const float tx = 0.0;
+    float correction = 2.398;
+
+    float mu = intercept + slope * std::log10(distance);
+    float rssi = -std::exp(mu);
+    float attenuation = tx - (rssi + correction);
+    return attenuation;
   }
 
   absl::StatusOr<int> RSSIToBinIndex(const int rssi) const;
@@ -65,7 +78,12 @@ class LearningRiskScoreModel {
 
   // Overall scaling factor for risk score. This scales the product of duration
   // and infection scores.
-  float overall_real_;
+  // Default value from "Quantifying SARS-CoV-2-infection risk withing the
+  // Apple/Google exposure notification framework to inform quarantine
+  // recommendations, Amanda Wilson, Nathan Aviles, Paloma Beamer,
+  // Zsombor Szabo, Kacey Ernst, Joanna Masel. July 2020."
+  // https://www.medrxiv.org/content/10.1101/2020.07.17.20156539v2
+  float risk_scale_factor_ = 3.1 * 1e-4;
   // Buckets representing threshold and corresponding weight of ble attenuation
   // signals.
   std::vector<BLEBucket> ble_buckets_;
