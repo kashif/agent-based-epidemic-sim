@@ -29,8 +29,11 @@
 
 namespace abesim {
 
-ExposurePair MicroExposureGenerator::Generate(const HostData& host_a,
-                                              const HostData& host_b) const {
+void MicroExposureGenerator::Generate(float location_transmissibility,
+                                      const Visit& visit_a,
+                                      const Visit& visit_b,
+                                      Exposure* exposure_a,
+                                      Exposure* exposure_b) const {
   const ProximityTrace proximity_trace = proximity_trace_distribution_.empty()
                                              ? GenerateProximityTrace()
                                              : DrawProximityTrace();
@@ -41,20 +44,25 @@ ExposurePair MicroExposureGenerator::Generate(const HostData& host_a,
                       return proximity < std::numeric_limits<float>::max();
                     });
   const absl::Duration trace_duration = trace_length * kProximityTraceInterval;
-
-  return {.host_a =
-              {
-                  .duration = trace_duration,
-                  .proximity_trace = proximity_trace,
-                  .infectivity = host_b.infectivity,
-                  .symptom_factor = host_b.infectivity,
-              },
-          .host_b = {
-              .duration = trace_duration,
-              .proximity_trace = proximity_trace,
-              .infectivity = host_a.infectivity,
-              .symptom_factor = host_a.symptom_factor,
-          }};
+  absl::Time start_time = std::max(visit_a.start_time, visit_b.start_time);
+  *exposure_a = {
+      .start_time = start_time,
+      .duration = trace_duration,
+      .proximity_trace = proximity_trace,
+      // TODO: Is it right that infectivity and symptom_factor are set
+      // to the same value?
+      .infectivity = visit_b.infectivity,
+      .symptom_factor = visit_b.infectivity,
+      .location_transmissibility = location_transmissibility,
+  };
+  *exposure_b = {
+      .start_time = start_time,
+      .duration = trace_duration,
+      .proximity_trace = proximity_trace,
+      .infectivity = visit_a.infectivity,
+      .symptom_factor = visit_a.symptom_factor,
+      .location_transmissibility = location_transmissibility,
+  };
 }
 
 ProximityTrace MicroExposureGenerator::GenerateProximityTrace() const {

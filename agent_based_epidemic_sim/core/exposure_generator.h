@@ -17,21 +17,10 @@
 #ifndef AGENT_BASED_EPIDEMIC_SIM_CORE_EXPOSURE_GENERATOR_H_
 #define AGENT_BASED_EPIDEMIC_SIM_CORE_EXPOSURE_GENERATOR_H_
 
-#include "absl/time/time.h"
 #include "agent_based_epidemic_sim/core/event.h"
+#include "agent_based_epidemic_sim/core/visit.h"
 
 namespace abesim {
-
-struct HostData {
-  absl::Time start_time;
-  float infectivity;
-  float symptom_factor;
-};
-
-struct ExposurePair {
-  Exposure host_a;
-  Exposure host_b;
-};
 
 // Implement this interface to generate exposures based on a custom scheme.
 class ExposureGenerator {
@@ -41,8 +30,9 @@ class ExposureGenerator {
   // into this method.
   // Returns a pair of Exposures mirroring a single exposure event between a
   // pair of hosts.
-  virtual ExposurePair Generate(const HostData& host_a,
-                                const HostData& host_b) const = 0;
+  virtual void Generate(float location_transmissibility, const Visit& visit_a,
+                        const Visit& visit_b, Exposure* exposure_a,
+                        Exposure* exposure_b) const = 0;
 };
 
 }  // namespace abesim

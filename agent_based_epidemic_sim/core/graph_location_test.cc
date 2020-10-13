@@ -39,9 +39,11 @@ class FakeBroker : public Broker<InfectionOutcome> {
 };
 
 class FakeExposureGenerator : public ExposureGenerator {
-  ExposurePair Generate(const HostData& host_a, const HostData& host_b) const {
-    return {.host_a = {.infectivity = host_b.infectivity},
-            .host_b = {.infectivity = host_a.infectivity}};
+  void Generate(float location_transmissibility, const Visit& visit_a,
+                const Visit& visit_b, Exposure* exposure_a,
+                Exposure* exposure_b) const {
+    exposure_a->infectivity = visit_b.infectivity;
+    exposure_b->infectivity = visit_a.infectivity;
   }
 };
 
